@@ -2,19 +2,26 @@ import React, { use, useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client';
 import axios from 'axios';
 
-// Create a singleton instance for the API socket
+// Create singleton instances for both sockets
 let apiSocketInstance = null;
+let ownSocketInstance = null;
 
 export default function useChat() {
-    const socketOwnRef = useRef(null);
     const [messages, setMessages] = useState([]);
     const [key, setKey] = useState('');
 
     // Initialize own socket connection once
     useEffect(() => {
-        if (!socketOwnRef.current) {
-            const socketOwn = io("http://localhost:2300");
-            socketOwnRef.current = socketOwn;
+        if (!ownSocketInstance) {
+            ownSocketInstance = io("http://localhost:2300");
+            
+            ownSocketInstance.on('connect', () => {
+                console.log('Connected to own server with ID:', ownSocketInstance.id);
+            });
+
+            ownSocketInstance.on('connect_error', (err) => {
+                console.error('Own server connection error:', err.message);
+            });
         }
     }, []);
     
@@ -44,13 +51,13 @@ export default function useChat() {
             });
 
             apiSocketInstance.on('connect_error', (err) => {
-                console.error('Connection error:', err.message);
+                console.error('API server connection error:', err.message);
             });
         }
 
-        // Cleanup function
+        // Cleanup function - only disconnect if the key is being cleared
         return () => {
-            if (apiSocketInstance) {
+            if (!key && apiSocketInstance) {
                 apiSocketInstance.disconnect();
             }
         };
@@ -82,7 +89,12 @@ export default function useChat() {
 
     const getMessage = (message) => {
         setMessages(prev => [...prev, message]);
-        socketOwnRef.current.emit('user-message', JSON.stringify(message));
+        
+        if (ownSocketInstance?.connected) {
+            ownSocketInstance.emit('user-message', JSON.stringify(message));
+        } else {
+            console.warn("Own socket is not connected");
+        }
         
         if (apiSocketInstance?.connected) {
             apiSocketInstance.emit('webuser-message', JSON.stringify(message));
