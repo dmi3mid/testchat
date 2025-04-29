@@ -2,6 +2,7 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import './App.css';
 
+
 import MainPage from './pages/MainPage';
 import SettingsPage from './pages/SettingsPage';
 
@@ -10,7 +11,7 @@ function App() {
     <div>
       <Routes>
         <Route index element={
-          <MainPage />
+            <MainPage />
         } />
         <Route path='/settings' element={
           <SettingsPage />
