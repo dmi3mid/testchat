@@ -32,7 +32,11 @@ export default function useChat() {
 
         // Create new socket connection
         apiSocketInstance = io("http://localhost:2800");
-
+        apiSocketInstance.emit('join-room', JSON.stringify({
+            roomId: defaultUser._id,
+            username: defaultUser.username,
+            isOpened: defaultUser.isOpened,
+        }));
         // Set up event listeners
         apiSocketInstance.on('connect', () => {
             console.log('Connected to API server with ID:', apiSocketInstance.id);
