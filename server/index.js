@@ -59,8 +59,8 @@ app.post('/auth', async (req, res) => {
 });
 
 io.on('connection', async (socket) => {
-    socket.on('user-message', async (data) => {
-        const parsedData = JSON.parse(data);
-        await web_messages.insertOne(parsedData);
-    });
+    // socket.on('user-message', async (data) => {
+    //     const parsedData = JSON.parse(data);
+    //     await web_messages.insertOne(parsedData);
+    // });
 });

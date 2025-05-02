@@ -9,9 +9,10 @@ export default function SendMsgFrom({getMessage}) {
     const sendMessage = (ev) => {
         ev.preventDefault();
         const message = {
-            from: "user",
             text: textMessage,
-            isAdmin: false,
+            from_admin: false,
+            date: Date.now(),
+            is_bot_msg: false,
         }
         getMessage(message);
         setTextMessage('');

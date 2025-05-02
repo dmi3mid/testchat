@@ -1,23 +1,37 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 import useChat from '../hooks/useChat'
 
 import Message from './Message';
 import SendMsgFrom from './SendMsgFrom'
+import Button from './UI/Button';
 
 export default function Chat() {
     const {
         messages, setMessages,
         getMessage,
     } = useChat();
+
+    const [start, setStart] = useState(false)
     return (
         <div className="flex flex-col justify-end h-[504px]">
-            <div className="flex-1 overflow-y-auto">
-                {messages.map((msg, id) => (
-                    <Message key={id} from={msg.from} text={msg.text} isAdmin={msg.isAdmin} />
-                ))}
-            </div>
-            <SendMsgFrom getMessage={getMessage} />
+            {start
+                ? <>
+                    <div className="flex-1 overflow-y-auto">
+                        {messages.map((msg, id) => (
+                            <Message key={id} from={msg.username} text={msg.text} isAdmin={msg.from_admin} />
+                        ))}
+                    </div>
+                    <SendMsgFrom getMessage={getMessage} />
+                </>
+                : <Button onClick={() => {setStart(true); getMessage(
+                    {
+                        text: 'start',
+                        from_admin: false,
+                        date: Date.now(),
+                    }
+                )}} styles={'text-[25px] text-[#0f0d0f] font-[Ubuntu] font-[500] w-[100%] bg-[#00e4d8] duration-300 hover:opacity-80'}>Start</Button>
+            }
         </div>
     )
 }
