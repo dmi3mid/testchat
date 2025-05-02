@@ -1,34 +1,27 @@
-import React, { use, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { io } from 'socket.io-client';
 import axios from 'axios';
 
-// Create singleton instances for both sockets
+// Create singleton instance for socket
 let apiSocketInstance = null;
-// let ownSocketInstance = null;
 
 export default function useChat() {
-    const [messages, setMessages] = useState([]);
+    const [messages, setMessages] = useState(() => {
+        // Initialize messages from localStorage if available
+        const savedMessages = localStorage.getItem('chatMessages');
+        return savedMessages ? JSON.parse(savedMessages) : [];
+    });
     const [key, setKey] = useState('');
-    const [defaultUser, setDefaultUser] = useState({
+    const [defaultUser] = useState({
         _id: 101010110001,
         username: "default_user",
         isOpened: true,
     });
 
-    // Initialize own socket connection once
-    // useEffect(() => {
-    //     if (!ownSocketInstance) {
-    //         ownSocketInstance = io("http://localhost:2300");
-            
-    //         ownSocketInstance.on('connect', () => {
-    //             console.log('Connected to own server with ID:', ownSocketInstance.id);
-    //         });
-
-    //         ownSocketInstance.on('connect_error', (err) => {
-    //             console.error('Own server connection error:', err.message);
-    //         });
-    //     }
-    // }, []);
+    // Save messages to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('chatMessages', JSON.stringify(messages));
+    }, [messages]);
     
     // Handle API socket connection
     useEffect(() => {
@@ -37,75 +30,72 @@ export default function useChat() {
             return;
         }
 
-        // If we have a key, create or reconnect the API socket
-        if (key) {
-            // Disconnect existing socket if it exists
+        // Create new socket connection
+        apiSocketInstance = io("http://localhost:2800");
+
+        // Set up event listeners
+        apiSocketInstance.on('connect', () => {
+            console.log('Connected to API server with ID:', apiSocketInstance.id);
+        });
+
+        apiSocketInstance.on('connect_error', (err) => {
+            console.error('API server connection error:', err.message);
+        });
+
+        apiSocketInstance.on('admin-message', (data) => {
+            try {
+                const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+                setMessages(prev => [...prev, parsedData]);
+            } catch (error) {
+                console.error('Error parsing admin message:', error);
+            }
+        });
+
+        // Cleanup function
+        return () => {
             if (apiSocketInstance) {
                 apiSocketInstance.disconnect();
             }
-
-            // Create new socket connection
-            apiSocketInstance = io("http://localhost:2800");
-
-            // apiSocketInstance.on('admin-message', (data) => {
-            //     const parsedData = JSON.parse(data);
-            //     console.log(parsedData);
-            //     setMessages(prev => [...prev, parsedData]);
-            // });
-
-            // apiSocketInstance.on('admin-closed-chat', (data) => {
-            //     const parsedData = JSON.parse(data);
-            //     console.log(parsedData);
-            //     setMessages(prev => [...prev, parsedData]);
-            // })
-            // apiSocketInstance.on('connect', () => {
-            //     console.log('Connected to API server with ID:', apiSocketInstance.id);
-            // });
-
-            // apiSocketInstance.on('connect_error', (err) => {
-            //     console.error('API server connection error:', err.message);
-            // });
-        }
-
-        // Cleanup function - only disconnect if the key is being cleared
-        return () => {
-            if (!key && apiSocketInstance) {
-                apiSocketInstance.disconnect();
-            }
         };
-    }, [key]);
+    }, []);
 
-    // Fetch initial messages and key
+    // Fetch initial key
     useEffect(() => {
         const getKey = async () => {
-            const response = await axios.get('http://localhost:2300/getKey');
-            const keyData = response.data;
-            if (keyData.length > 0) {
-                setKey(keyData[0].token);
+            try {
+                const response = await axios.get('http://localhost:2300/getKey');
+                const keyData = response.data;
+                if (keyData.length > 0) {
+                    setKey(keyData[0].token);
+                }
+            } catch (error) {
+                console.error('Error fetching key:', error);
             }
         }
         getKey();
     }, []);
 
     const sendKey = async (key) => {
-        setKey(key);
-        const response = await axios.post('http://localhost:2300/auth', { token: key });
+        try {
+            setKey(key);
+            await axios.post('http://localhost:2300/auth', { token: key });
+        } catch (error) {
+            console.error('Error sending key:', error);
+        }
     }
 
     const getMessage = (message) => {
         setMessages(prev => [...prev, message]);
         
-        // if (ownSocketInstance?.connected) {
-        //     ownSocketInstance.emit('user-message', JSON.stringify(message));
-        // } else {
-        //     console.warn("Own socket is not connected");
-        // }
-        
         if (apiSocketInstance?.connected) {
             if (message.text === "start") {
                 apiSocketInstance.emit('start', JSON.stringify(defaultUser));
             } else {
-                apiSocketInstance.emit('user-message', JSON.stringify({...message, username: defaultUser.username, room_id: defaultUser._id}));
+                apiSocketInstance.emit('user-message', JSON.stringify({
+                    ...message,
+                    username: defaultUser.username,
+                    room_id: defaultUser._id
+                }));
             }
         } else {
             console.warn("API socket is not connected");
